@@ -73,6 +73,7 @@ optional cho phép sử dụng nhập tay/gallery khi máy không có camera.
 
 ## File tạo mới
 
+- `.gitattributes` (giữ PDF/PNG nguyên bytes khi checkout trên Windows)
 - `lib/state/transaction_state.dart`
 - `lib/state/appearance_state.dart`
 - `lib/services/receipt_import_service.dart`

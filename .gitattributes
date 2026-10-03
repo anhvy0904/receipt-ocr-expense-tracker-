@@ -1,0 +1,3 @@
+# Preserve exported documents and images byte-for-byte across Windows checkouts.
+*.pdf binary
+*.png binary
