@@ -5,6 +5,16 @@
 Brand palette: `#425B9A` · `#76C0EC` · `#FFF6DC` · `#FF95A5`.
 See [branding assets and generation notes](docs/BRANDING.md).
 
+| Color | UI role |
+| --- | --- |
+| `#425B9A` | Navy primary buttons and brand accents |
+| `#76C0EC` | Sky-blue containers, chart accents and dark-mode actions |
+| `#FFF6DC` | Warm cream background in light mode |
+| `#FF95A5` | Pink navigation highlights and mascot cheeks |
+
+The smiling receipt mascot appears on Home and the Android launcher. Dark mode
+uses navy-derived surfaces with light text; supporting shades preserve contrast.
+
 ## 2. Project Description
 
 ReceiptWise is an Android Flutter application that turns physical receipts into
@@ -13,6 +23,11 @@ and heuristic extraction run on the device. Users review and edit every result
 before explicitly saving it. SQLite stores transactions; receipt images stay in
 application documents storage. No cloud OCR, Firebase, Supabase, paid OCR API or
 chart library is used.
+
+Current release: **1.1.1+4**. This update brings the four-color brand palette,
+original receipt logo, matching charts and refreshed light/dark UI screenshots.
+The preceding core upgrade added Provider, camera/gallery image selection and
+manual expense entry. See [course requirements and remaining checks](COURSE_READINESS.md).
 
 ## 3. APK Download
 
@@ -39,6 +54,11 @@ through review, Save, History, Edit/Delete and Analytics, then add the real URL.
 These images are actual Flutter UI renders from the automated host flow using a
 synthetic receipt/OCR fixture. They are **not physical Android screenshots**.
 TODO: add camera/receipt evidence captured on a real device.
+
+<p>
+  <img src="docs/screenshots/home-light.png" alt="ReceiptWise Home in cream and navy light theme" width="240">
+  <img src="docs/screenshots/home-dark.png" alt="ReceiptWise Home in navy and sky-blue dark theme" width="240">
+</p>
 
 | Screen | Screenshot |
 | --- | --- |
@@ -170,6 +190,8 @@ test/
 android/                  Android host and Gradle configuration
 integration_test/         Android SQLite flow with mocked camera/OCR boundaries
 docs/                     Demo/signing guides, UI fixture screenshots, PDF source
+assets/branding/          Transparent receipt mascot logo
+tool/                     Reproducible Android launcher icon exports
 output/pdf/               Four-page technical report
 README.md
 ARCHITECTURE.md
