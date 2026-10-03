@@ -1,0 +1,47 @@
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+android/local.properties
+android/.gradle/
+android/.kotlin/
+*.iml
+.idea/
+
+# Flutter/Dart generated output; pubspec.lock stays tracked for this application.
+doc/api/
+.pub-cache/
+.pub/
+android/.cxx/
+android/app/.cxx/
+android/captures/
+android/**/GeneratedPluginRegistrant.java
+
+# Local configuration and signing secrets.
+.env
+.env.*
+!.env.example
+android/key.properties
+*.keystore
+*.jks
+
+# Release binaries, host SQLite files and transient diagnostics.
+*.apk
+*.aab
+*.apks
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+
+# Editor / operating-system files.
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
