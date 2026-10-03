@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/transaction_model.dart';
+import '../models/receipt_review_draft.dart';
 import '../repository/transaction_repository.dart';
 import 'receipt_image_service.dart';
 
@@ -8,15 +9,17 @@ class ReceiptSaveService {
   ReceiptSaveService({
     TransactionRepository? repository,
     ReceiptImageService? images,
+    this._onChanged,
   }) : _repository = repository ?? TransactionRepository(),
        _images = images ?? ReceiptImageService();
 
   final TransactionRepository _repository;
   final ReceiptImageService _images;
+  final Future<void> Function()? _onChanged;
   bool _saving = false;
 
   Future<TransactionModel> save({
-    required String temporaryImagePath,
+    required String? temporaryImagePath,
     required String merchant,
     required double amount,
     required DateTime date,
@@ -26,12 +29,14 @@ class ReceiptSaveService {
     if (merchant.trim().isEmpty ||
         !amount.isFinite ||
         amount <= 0 ||
-        category.trim().isEmpty) {
+        !ReceiptReviewDraft.categories.contains(category)) {
       throw ArgumentError('Valid receipt details are required.');
     }
     _saving = true;
     try {
-      final imagePath = await _images.copyToDocuments(temporaryImagePath);
+      final imagePath = temporaryImagePath == null
+          ? null
+          : await _images.copyToDocuments(temporaryImagePath);
       final record = TransactionModel(
         merchant: merchant.trim(),
         amount: amount,
@@ -46,7 +51,7 @@ class ReceiptSaveService {
       } catch (_) {
         // Never delete the source. Remove only the uncommitted destination.
         try {
-          await _images.discardDocumentCopy(imagePath);
+          if (imagePath != null) await _images.discardDocumentCopy(imagePath);
         } catch (error) {
           if (kDebugMode) {
             debugPrint('Uncommitted receipt cleanup failed: $error');
@@ -54,7 +59,7 @@ class ReceiptSaveService {
         }
         rethrow;
       }
-      return TransactionModel(
+      final saved = TransactionModel(
         id: id,
         merchant: record.merchant,
         amount: record.amount,
@@ -63,6 +68,13 @@ class ReceiptSaveService {
         receiptImagePath: imagePath,
         createdAt: record.createdAt,
       );
+      // Notification failure must never turn a committed insert into a retry.
+      try {
+        await _onChanged?.call();
+      } catch (error) {
+        if (kDebugMode) debugPrint('Saved transaction refresh failed: $error');
+      }
+      return saved;
     } finally {
       _saving = false;
     }

@@ -15,14 +15,14 @@ chart library is used.
 
 A release-mode APK was built locally on **2026-10-03**:
 
-- Version: **1.0.1+2**
+- Version: **1.1.0+3**
 - File: `build/app/outputs/flutter-apk/app-release.apk`
-- Size: **88,067,960 bytes** (84.0 MiB)
-- SHA-256: `CC4127717C43B310A8AED665F9AA2F3909338A30FE2074127225182A7BD93AF9`
+- Size: **88,386,859 bytes** (84.3 MiB)
+- SHA-256: `A99A393013B274E462C49D410B39F4FF02691F778A77DFDB676361BE743BF52D`
 
 The artifact is generated locally and ignored by version control. It uses the
-debug signing configuration and has not been installed or published. Configure
-production signing and verify the APK on Android before providing a public link.
+dedicated ReceiptWise release certificate, verified using APK Signature Scheme v2.
+It has not been installed or published; verify it on Android before providing a public link.
 
 ## 4. Demo Video
 
@@ -31,20 +31,28 @@ through review, Save, History, Edit/Delete and Analytics, then add the real URL.
 
 ## 5. Screenshots
 
-**TODO:** capture actual Android screenshots. No fabricated screenshots are included.
+These images are actual Flutter UI renders from the automated host flow using a
+synthetic receipt/OCR fixture. They are **not physical Android screenshots**.
+TODO: add camera/receipt evidence captured on a real device.
 
 | Screen | Screenshot |
 | --- | --- |
-| Home | TODO: add actual screenshot |
-| Scanner and receipt frame | TODO: add actual screenshot |
-| Editable Review | TODO: add actual screenshot |
-| Transaction History / Detail / Edit | TODO: add actual screenshots |
-| Category donut and weekly bars | TODO: add actual screenshot |
+| Home | [Light](docs/screenshots/home-light.png), [Dark](docs/screenshots/home-dark.png) |
+| Scanner and receipt frame | TODO: physical-device screenshot |
+| Editable Review | [Fixture review](docs/screenshots/review.png) |
+| Transaction History | [Fixture history](docs/screenshots/history.png) |
+| Category donut and weekly bars | [Donut](docs/screenshots/analytics.png), [Weekly](docs/screenshots/weekly-bars.png) |
+
+The four-page [technical report](output/pdf/receiptwise_technical_report.pdf)
+documents architecture, parsing, storage, charts, UI evidence and limitations.
 
 ## 6. Features
 
 - SQLite-backed Home summary: all-time spending, latest-seven-day spending,
   transaction count and three most recent transactions; refresh after changes.
+- Receipt camera/gallery input using official `image_picker`, Android lost-image
+  recovery, and validated manual entry without requiring an image.
+- Provider shares one SQLite snapshot across Home, History and Analytics.
 - Full-screen back-camera preview, off/torch flash, supported tap-to-focus,
   receipt framing, permission/error handling and lifecycle-aware camera release.
 - Orientation-aware framing crop at native resolution, processed in an isolate.
@@ -58,7 +66,7 @@ through review, Save, History, Edit/Delete and Analytics, then add the real URL.
   formatted VND amounts, full-image details, validated edits and confirmed deletion.
 - Animated category donut and latest-seven-day bars drawn with CustomPainter.
   Empty/zero spending, one category and very large totals are handled.
-- Material 3 light/dark themes, scrollable forms, enlarged-text support,
+- Material 3 light/dark/system selection from the Appearance menu, scrollable forms, enlarged-text support,
   consistent spacing, padded touch targets and high-contrast scanner controls.
 
 Categories: **Food, Study, Travel, Gear, Entertainment, Other**.
@@ -89,6 +97,8 @@ Categories: **Food, Study, Travel, Gear, Entertainment, Other**.
 | Android compile SDK | API 36 with the supplied Flutter defaults / ML Kit plugin |
 | Android build tooling | Android SDK tools and a compatible JDK 17 setup |
 | Camera | Official `camera` package |
+| Camera/gallery picker | Official `image_picker` package |
+| State management | `provider` + ChangeNotifier |
 | OCR | `google_mlkit_text_recognition`, bundled native Latin model |
 | Persistence | `sqflite`; `sqflite_common_ffi` for host tests only |
 | Images/files | `image`, `path_provider`, `path` |
@@ -102,15 +112,19 @@ by Flutter web/desktop; host unit/widget tests mock the native recognizer instea
 ## 9. Architecture
 
 The app uses a small separation of UI, services, repository, database and models.
-Widgets own local UI state and use Flutter Navigator for routes. No state-management
-framework or dependency-injection container is required.
+Widgets own local UI state and use Flutter Navigator for routes. Provider exposes
+TransactionState's shared SQLite records, loading/error states and computed
+summary/chart data. Services notify state after committed writes; AppearanceState
+controls the current theme. No dependency-injection container is needed.
 
 ```text
 Camera → Capture → Crop → On-device OCR → ReceiptParser → Editable Review
                                                         ↓ explicit Save
                                       Documents image copy → SQLite insert → Home
 
-History / Analytics → TransactionRepository → AppDatabase → local SQLite
+Camera picker / gallery → normalize image → same OCR and Review flow
+Manual entry → same validated Review form (no image required)
+Services → SQLite → TransactionState (Provider) → Home / History / Analytics
 ```
 
 - **UI:** presentation, form validation, confirmation dialogs and loading/error states.
@@ -126,6 +140,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and the
 [production-readiness review](PRODUCTION_READINESS.md) for implementation details.
 The [comparison review](COMPARISON_REVIEW.md) documents how ReceiptWise differs
 from the referenced course project and which receipt-flow gaps were improved.
+See [COURSE_READINESS.md](COURSE_READINESS.md) for the latest course-core upgrade,
+verification, file changes and remaining device/video acceptance checks.
 
 ## 10. Project Structure
 
@@ -136,6 +152,7 @@ lib/
   models/                 Transactions, OCR output, receipt geometry, analytics
   database/               AppDatabase and SQLite schema
   repository/             TransactionRepository
+  state/                  Provider transaction snapshot and appearance selection
   services/               Camera, OCR, parser, crop, storage, save/delete, home summary, aggregation
   ui/screens/             Home, Scanner, Review, History, Detail, Edit, Analytics
   ui/widgets/             Camera/frame/controls, images, empty states, chart painters
@@ -146,10 +163,14 @@ test/
   services/               Camera, OCR, parser, crop, storage, aggregation tests
   *_test.dart             Navigation, forms, history, charts and responsive layouts
 android/                  Android host and Gradle configuration
+integration_test/         Android SQLite flow with mocked camera/OCR boundaries
+docs/                     Demo/signing guides, UI fixture screenshots, PDF source
+output/pdf/               Four-page technical report
 README.md
 ARCHITECTURE.md
 PRODUCTION_READINESS.md
 COMPARISON_REVIEW.md
+COURSE_READINESS.md
 pubspec.yaml
 pubspec.lock
 ```
@@ -256,7 +277,9 @@ Android SDK/JDK issues reported by `flutter doctor`, install Android SDK 36 and 
 NDK version requested by Flutter/Gradle, and connect an Android phone with USB
 debugging enabled or start an Android emulator. Dependency resolution and initial
 Android builds can download packages; installed receipt OCR itself runs offline.
-No API keys, Firebase configuration or account setup are needed.
+No API keys, Firebase configuration or account setup are needed. Debug builds need
+no private signing configuration. Release builds require your own ignored signing
+files as explained in [docs/RELEASE_SIGNING.md](docs/RELEASE_SIGNING.md).
 
 ## 16. Running the Project
 
@@ -269,6 +292,9 @@ Allow camera access when requested. If permission is denied, allow it in Android
 settings and use Retry. Devices without a camera show an unavailable state.
 Scan, review/edit the details and press Save; saved entries appear in Transactions
 and Analytics. Retake discards the temporary crop and returns to the camera.
+Home also offers Take receipt photo, Choose receipt image and Enter expense
+manually. The Appearance menu switches Light / Dark / System; selection is kept
+for the running session and resets to System after process restart.
 
 ## 17. Testing
 
@@ -288,19 +314,30 @@ flutter test --coverage
 ```
 
 Verification on **2026-10-03** with the supplied SDK: formatting and dependency
-resolution succeeded, analyzer reported **no issues**, and **86 tests passed**.
+resolution succeeded, analyzer reported **no issues**, and **96 tests passed**.
 Flutter invocations used `--no-version-check` to avoid checking for SDK updates.
 Tests cover real SQLite persistence, async disposal, save rollback, parser formats,
 missing images, edit/delete, chart pixels/animation and keyboard/enlarged-text layouts.
 Native Android camera/OCR behavior and release APK installation remain device checks.
 
+On an Android device:
+
+```powershell
+flutter test integration_test/receipt_flow_test.dart -d <android-device-id>
+```
+
+The integration scenario uses native SQLite and fixture capture/OCR boundaries.
+It is provided but has not been run on Android here because no device was connected.
+See [docs/DEMO_CHECKLIST.md](docs/DEMO_CHECKLIST.md) for native acceptance checks.
+
 ## 18. Build APK
 
-Before publishing, **TODO:** choose a production application ID and configure a
-private release keystore/signing configuration. The current application ID is
-`com.example.receiptwise`, and the current Gradle release configuration uses debug
-signing for development. A release-mode build alone does not change that signing.
-Keep `android/key.properties` and keystore files out of version control.
+Application ID: `com.anhvy.receiptwise`. Release builds use a dedicated private
+keystore, configured in ignored `android/key.properties`, with no debug fallback.
+See [release signing and backup instructions](docs/RELEASE_SIGNING.md). Back up
+the local keystore and properties securely before moving or deleting the checkout.
+The new ID installs separately from older `com.example.receiptwise` debug builds;
+old records are not migrated.
 
 ```powershell
 flutter pub get
@@ -311,9 +348,9 @@ flutter build apk --release
 
 Default output: `build/app/outputs/flutter-apk/app-release.apk`.
 Optional per-ABI APKs: `flutter build apk --release --split-per-abi`.
-The release APK was built successfully on 2026-10-03 (88,067,960 bytes). It uses
-the debug signing configuration and has not been installed or published. Production
-signing and physical-device release testing remain TODO.
+The release APK was built successfully on 2026-10-03 (88,386,859 bytes).
+Its dedicated RSA certificate was verified with Android apksigner. Physical-device
+release testing and public distribution remain TODO.
 
 Android build configuration disables Kotlin incremental compilation to avoid
 cross-drive cache errors when the project and Pub cache are on different Windows
@@ -328,11 +365,14 @@ added, include their native dependencies and revisit those rules.
 | Camera | Requested through the official camera plugin when initializing capture. |
 | Camera hardware | Declared optional so devices without a camera can show an unavailable state. |
 | Internet in debug/profile | Flutter development tooling; receipt OCR does not use it. |
+| System photo picker | User-selected receipt images through image_picker; no broad gallery permission is requested by application code. |
 
 If camera permission is denied, enable it in Android settings and use Retry.
 Audio capture is disabled. The app stores files in app-owned directories and
-does not require broad shared-storage access. The main application manifest does
-not declare Internet permission; debug/profile manifests declare it for tooling.
+does not require broad shared-storage access. Manifest merge rules remove inherited
+audio/shared-storage permissions. The release overlay removes Internet and network
+state permissions; debug/profile manifests retain Internet for Flutter tooling.
+The final merged release manifest was checked after building.
 
 ## 20. Privacy
 
@@ -364,14 +404,14 @@ does not guarantee that operating-system backups are disabled.
 - OCR latency varies by device and image; no sub-100 ms guarantee is made.
 - Automated tests do not establish native camera/ML Kit behavior, device performance
   or release installation readiness.
-- The current APK has debug signing and a sample application ID. Public APK/video
-  links and actual screenshots remain TODO.
+- Public APK/video links and physical-device screenshots remain TODO. Host-rendered
+  fixture screenshots are documented separately from native-device evidence.
 
 ## 22. Future Improvements
 
 The following are proposed or pending work, not implemented features:
 
-- Configure a production application ID and private release signing.
+- Back up the dedicated release key and verify the signed APK on Android.
 - Validate permissions, torch/focus, rotation and background/resume on Android.
 - Verify first-run OCR in airplane mode and crop alignment using real receipts.
 - Expand receipt-format regression fixtures based on reviewed Vietnamese samples.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/home_summary.dart';
 import '../../services/home_summary_service.dart';
+import '../../state/transaction_state.dart';
 import '../../utils/analytics_format.dart';
 import '../../utils/transaction_format.dart';
 import '../widgets/receipt_image.dart';
@@ -10,6 +11,10 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     required this.onScanReceipt,
     this.onViewTransactions,
+    this.onImportReceipt,
+    this.onPickerCamera,
+    this.onManualEntry,
+    this.state,
     this.selectedReceiptPath,
     this.service,
     this.active = true,
@@ -19,6 +24,10 @@ class HomeScreen extends StatefulWidget {
 
   final VoidCallback onScanReceipt;
   final VoidCallback? onViewTransactions;
+  final VoidCallback? onImportReceipt;
+  final VoidCallback? onPickerCamera;
+  final VoidCallback? onManualEntry;
+  final TransactionState? state;
   final String? selectedReceiptPath;
   final HomeSummaryService? service;
   final bool active;
@@ -38,19 +47,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.active) _load();
+    if (widget.active && widget.state == null) _load();
   }
 
   @override
   void didUpdateWidget(HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active &&
+    if (widget.state == null &&
+        widget.active &&
         (!oldWidget.active || widget.revision != oldWidget.revision)) {
       _load();
     }
   }
 
   Future<void> _load() async {
+    if (widget.state != null) return widget.state!.refresh();
     final request = ++_request;
     setState(() {
       _loading = true;
@@ -91,7 +102,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final summary = _summary;
+    final summary = widget.state?.homeSummary ?? _summary;
+    final loading = widget.state?.loading ?? _loading;
+    final failed = widget.state?.failed ?? _failed;
     return RefreshIndicator(
       onRefresh: _load,
       child: SingleChildScrollView(
@@ -114,18 +127,42 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.document_scanner_outlined),
               label: const Text('Open scanner'),
             ),
+            if (widget.onPickerCamera != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: widget.onPickerCamera,
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Take receipt photo'),
+              ),
+            ],
+            if (widget.onImportReceipt != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: widget.onImportReceipt,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Choose receipt image'),
+              ),
+            ],
+            if (widget.onManualEntry != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: widget.onManualEntry,
+                icon: const Icon(Icons.edit_note_outlined),
+                label: const Text('Enter expense manually'),
+              ),
+            ],
             if (widget.selectedReceiptPath != null) ...[
               const SizedBox(height: 16),
               const Text('Transaction saved on this device.'),
             ],
             const SizedBox(height: 24),
-            if (_loading)
+            if (loading)
               const Center(
                 child: CircularProgressIndicator(
                   semanticsLabel: 'Loading spending summary',
                 ),
               )
-            else if (_failed) ...[
+            else if (failed) ...[
               const Text('Could not load spending summary.'),
               const SizedBox(height: 8),
               OutlinedButton.icon(

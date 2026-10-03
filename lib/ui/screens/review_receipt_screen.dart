@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../models/receipt_review_draft.dart';
@@ -7,6 +5,7 @@ import '../../models/transaction_model.dart';
 import '../../services/receipt_parser.dart';
 import '../../services/receipt_save_service.dart';
 import '../../utils/transaction_format.dart';
+import '../widgets/receipt_image.dart';
 
 class ReviewReceiptScreen extends StatefulWidget {
   const ReviewReceiptScreen({
@@ -83,9 +82,11 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Could not save receipt. Your edits are retained. Retry or retake if the photo is unavailable.',
+            widget.draft.imagePath == null
+                ? 'Could not save expense. Your edits are retained. Please retry.'
+                : 'Could not save receipt. Your edits are retained. Retry or retake if the photo is unavailable.',
           ),
         ),
       );
@@ -108,7 +109,11 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
     return PopScope(
       canPop: !_saving,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Review Receipt')),
+        appBar: AppBar(
+          title: Text(
+            widget.draft.imagePath == null ? 'Add expense' : 'Review Receipt',
+          ),
+        ),
         body: SafeArea(
           child: Form(
             key: _form,
@@ -117,17 +122,17 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Image.file(
-                    File(widget.draft.imagePath),
-                    height: 240,
-                    fit: BoxFit.contain,
-                    semanticLabel: 'Cropped receipt',
-                    errorBuilder: (_, error, stack) =>
-                        const Text('Receipt image unavailable.'),
-                  ),
-                  const SizedBox(height: 16),
+                  if (widget.draft.imagePath != null) ...[
+                    Semantics(
+                      label: widget.draft.imageDescription,
+                      child: ReceiptImage(imagePath: widget.draft.imagePath),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Text(
-                    widget.draft.ocrFailed
+                    widget.draft.imagePath == null
+                        ? 'Enter the expense details. Nothing is saved until you confirm.'
+                        : widget.draft.ocrFailed
                         ? 'Text recognition failed. Enter the receipt details manually.'
                         : text.trim().isEmpty
                         ? 'No text was found. Enter the receipt details manually.'
@@ -220,7 +225,7 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
                   ],
                   const SizedBox(height: 20),
                   const Text(
-                    'Save confirms these details and stores the receipt on this device.',
+                    'Save confirms these details and stores the expense on this device.',
                   ),
                   const SizedBox(height: 12),
                   FilledButton(

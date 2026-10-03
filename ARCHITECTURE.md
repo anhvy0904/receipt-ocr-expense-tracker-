@@ -1,7 +1,8 @@
 # Application architecture
 
-Keep responsibilities in small, concrete classes. Use Flutter widgets and local
-state for the skeleton; no routing or state-management package is needed.
+Keep responsibilities in small, concrete classes. Flutter Navigator owns routes;
+Provider exposes shared transaction and appearance state. Widgets retain local
+form/navigation state, while services and repositories own data operations.
 
 ```text
 lib/
@@ -284,7 +285,34 @@ date-labelled lines. Subtotal/change/tendered cash are excluded from fallback.
 The database schema, OCR, camera and painters remain unchanged; no package added.
 See [COMPARISON_REVIEW.md](COMPARISON_REVIEW.md) for scope and remaining gaps.
 
-## Future layer boundaries
+## Course-core upgrade (2026-10-03, 1.1.0+3)
+
+TransactionState exposes one immutable SQLite snapshot, HomeSummary and
+SpendingAnalytics through Provider. Save and management services refresh it only
+after committed writes. Load generations reject stale results; disposal prevents
+late notifications. Callback failures never misreport a committed write as failed.
+Standalone screen service injection remains available for focused widget tests.
+
+ReceiptImportService adds official image_picker camera/gallery input alongside
+the existing live scanner. Android lost-image recovery is checked once at startup.
+Imported images are normalized at native resolution in an isolate, written to
+owned temporary storage, then passed to the same OcrService and editable review.
+They retain the whole image because they have no scanner framing geometry.
+Recognition failure still permits manual correction. Temporary copies are cleaned
+after review completes; picker source images are never deleted.
+
+Manual entry uses the same validated review and save service with a nullable image
+path, supported by schema version 1. AppearanceState switches system/light/dark
+for the current process. The working camera, crop, OCR and parser implementations
+remain in their existing layers.
+
+Release signing uses an ignored private key and com.anhvy.receiptwise application
+ID. Main manifest removes unused audio/storage permissions; the release overlay
+also removes inherited Internet/network-state permissions. Debug/profile Internet
+remains available for Flutter tooling. Camera hardware is explicitly optional.
+See COURSE_READINESS.md for verification, changed files and physical-device TODOs.
+
+### Layer boundaries
 
 - UI displays service/repository results and gathers explicit user confirmation.
 - Models represent parsed receipts, categories, and stored transactions.
@@ -299,8 +327,8 @@ unless a later feature requires them.
 
 ## Deferred requirements
 
-- Release APK compilation succeeded on 2026-10-03. Verify installation on Android,
-  choose a production application ID, and configure release signing before publishing.
+- Dedicated signing and application ID are configured; verify the signed release
+  installation on Android and back up the private key before publishing.
 - Verify camera permission grant/deny, absent camera, off/torch, supported focus,
   rotation, duplicate capture, Retake/Use Receipt, and background/resume on Android
   hardware. Automated tests passed on 2026-10-02.

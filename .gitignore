@@ -26,6 +26,8 @@ android/**/GeneratedPluginRegistrant.java
 android/key.properties
 *.keystore
 *.jks
+*.p12
+tmp/
 
 # Release binaries, host SQLite files and transient diagnostics.
 *.apk

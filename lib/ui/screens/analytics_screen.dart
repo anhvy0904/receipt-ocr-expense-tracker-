@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/spending_analytics.dart';
 import '../../services/analytics_service.dart';
+import '../../state/transaction_state.dart';
 import '../widgets/category_donut_chart.dart';
 import '../widgets/weekly_bar_chart.dart';
 import '../widgets/placeholder_content.dart';
@@ -9,11 +10,13 @@ import '../widgets/placeholder_content.dart';
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({
     this.service,
+    this.state,
     this.active = true,
     this.revision = 0,
     super.key,
   });
   final AnalyticsService? service;
+  final TransactionState? state;
   final bool active;
   final int revision;
   @override
@@ -30,19 +33,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.active) _load();
+    if (widget.active && widget.state == null) _load();
   }
 
   @override
   void didUpdateWidget(AnalyticsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active &&
+    if (widget.state == null &&
+        widget.active &&
         (!oldWidget.active || oldWidget.revision != widget.revision)) {
       _load();
     }
   }
 
   Future<void> _load() async {
+    if (widget.state != null) return widget.state!.refresh();
     final request = ++_request;
     setState(() {
       _loading = true;
@@ -60,7 +65,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final data = _data;
+    final data = widget.state?.analytics ?? _data;
+    final loading = widget.state?.loading ?? _loading;
+    final failed = widget.state?.failed ?? _failed;
     return TickerMode(
       enabled: widget.active,
       child: Column(
@@ -77,16 +84,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
                 IconButton(
                   tooltip: 'Refresh analytics',
-                  onPressed: _loading ? null : _load,
+                  onPressed: loading ? null : _load,
                   icon: const Icon(Icons.refresh),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: _loading
+            child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : _failed
+                : failed
                 ? PlaceholderContent(
                     icon: Icons.error_outline,
                     title: 'Could not load analytics',

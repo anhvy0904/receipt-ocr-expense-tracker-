@@ -12,6 +12,7 @@ import '../../services/ocr_service.dart';
 import '../../services/receipt_camera_service.dart';
 import '../../services/receipt_image_service.dart';
 import '../../services/receipt_image_processor.dart';
+import '../../services/receipt_save_service.dart';
 import '../widgets/receipt_camera_preview.dart';
 import '../widgets/receipt_frame_overlay.dart';
 import '../widgets/scanner_controls.dart';
@@ -19,7 +20,8 @@ import '../widgets/placeholder_content.dart';
 import 'review_receipt_screen.dart';
 
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+  const ScannerScreen({this.saveService, super.key});
+  final ReceiptSaveService? saveService;
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -95,6 +97,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       final selected = await Navigator.of(context).push<TransactionModel>(
         MaterialPageRoute(
           builder: (_) => ReviewReceiptScreen(
+            saveService: widget.saveService,
             draft: ReceiptReviewDraft(
               imagePath: croppedPath!,
               ocrResult: result,

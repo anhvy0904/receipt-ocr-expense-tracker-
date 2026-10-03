@@ -11,7 +11,8 @@ class ReceiptReviewDraft {
     'Other',
   ];
   const ReceiptReviewDraft({
-    required this.imagePath,
+    this.imagePath,
+    this.imageDescription = 'Cropped receipt',
     this.ocrResult,
     this.ocrFailed = false,
     this.merchant = '',
@@ -20,7 +21,8 @@ class ReceiptReviewDraft {
     this.category = 'Other',
   });
 
-  final String imagePath;
+  final String? imagePath;
+  final String imageDescription;
   final OcrResult? ocrResult;
   final bool ocrFailed;
   final String merchant;

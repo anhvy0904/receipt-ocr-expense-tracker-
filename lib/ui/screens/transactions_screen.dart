@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/transaction_model.dart';
 import '../../repository/transaction_repository.dart';
 import '../../services/transaction_management_service.dart';
+import '../../state/transaction_state.dart';
 import '../../utils/transaction_format.dart';
 import '../widgets/receipt_image.dart';
 import '../widgets/placeholder_content.dart';
@@ -11,6 +12,7 @@ import 'transaction_detail_screen.dart';
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({
     this.repository,
+    this.state,
     this.managementService,
     this.active = true,
     this.revision = 0,
@@ -18,6 +20,7 @@ class TransactionsScreen extends StatefulWidget {
     super.key,
   });
   final TransactionRepository? repository;
+  final TransactionState? state;
   final TransactionManagementService? managementService;
   final bool active;
   final int revision;
@@ -41,19 +44,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.active) _load();
+    if (widget.active && widget.state == null) _load();
   }
 
   @override
   void didUpdateWidget(TransactionsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active &&
+    if (widget.state == null &&
+        widget.active &&
         (!oldWidget.active || widget.revision != oldWidget.revision)) {
       _load();
     }
   }
 
   Future<void> _load() async {
+    if (widget.state != null) return widget.state!.refresh();
     final request = ++_request;
     setState(() {
       _loading = true;
@@ -92,6 +97,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final records = widget.state?.records ?? _records;
+    final loading = widget.state?.loading ?? _loading;
+    final failed = widget.state?.failed ?? _failed;
     return Column(
       children: [
         Padding(
@@ -106,16 +114,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               IconButton(
                 tooltip: 'Refresh transactions',
-                onPressed: _loading ? null : _load,
+                onPressed: loading ? null : _load,
                 icon: const Icon(Icons.refresh),
               ),
             ],
           ),
         ),
         Expanded(
-          child: _loading
+          child: loading
               ? const Center(child: CircularProgressIndicator())
-              : _failed
+              : failed
               ? PlaceholderContent(
                   icon: Icons.error_outline,
                   title: 'Could not load transactions',
@@ -125,7 +133,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     child: const Text('Retry'),
                   ),
                 )
-              : _records.isEmpty
+              : records.isEmpty
               ? const PlaceholderContent(
                   icon: Icons.receipt_long_outlined,
                   title: 'No transactions yet',
@@ -136,10 +144,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   onRefresh: _load,
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _records.length,
+                    itemCount: records.length,
                     separatorBuilder: (_, index) => const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final record = _records[index];
+                      final record = records[index];
                       return Semantics(
                         button: true,
                         child: InkWell(

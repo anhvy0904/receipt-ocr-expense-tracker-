@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/receipt_review_draft.dart';
 import '../models/transaction_model.dart';
 import '../repository/transaction_repository.dart';
@@ -12,9 +14,19 @@ class TransactionManagementService {
   TransactionManagementService({
     required this._repository,
     ReceiptImageService? images,
+    this._onChanged,
   }) : _images = images ?? ReceiptImageService();
   final TransactionRepository _repository;
   final ReceiptImageService _images;
+  final Future<void> Function()? _onChanged;
+
+  Future<void> _changed() async {
+    try {
+      await _onChanged?.call();
+    } catch (error) {
+      if (kDebugMode) debugPrint('Transaction refresh failed: $error');
+    }
+  }
 
   Future<void> updateTransaction(TransactionModel record) async {
     if (record.id == null ||
@@ -27,6 +39,7 @@ class TransactionManagementService {
     if (await _repository.updateTransaction(record) == 0) {
       throw StateError('Transaction no longer exists');
     }
+    await _changed();
   }
 
   Future<TransactionDeletionResult> deleteTransaction(int id) async {
@@ -34,6 +47,7 @@ class TransactionManagementService {
     if (record == null) return const TransactionDeletionResult();
     // Delete the row first: database failure must never destroy its receipt.
     await _repository.deleteTransaction(id);
+    await _changed();
     try {
       await _images.deleteStoredReceipt(record.receiptImagePath);
       return const TransactionDeletionResult();

@@ -6,8 +6,10 @@ commit `c473bc5070e3855c858a3f05e695451b7d0af6a8`.
 Đã đọc README, PRD và mã nguồn liên quan; không chạy ứng dụng tham khảo.
 
 Người dùng chọn **hoàn thiện luồng hóa đơn và các thiếu sót thực tế, giữ kiến trúc
-hiện tại**. Phạm vi này không bao gồm việc chuyển sang Riverpod/image_picker,
-ảnh chuyển khoản hoặc giao diện Việt/Anh.
+hiện tại**, sau đó yêu cầu nâng cấp theo yêu cầu. Bản 1.1.0+3 bổ sung lõi môn học:
+image_picker, Provider, nhập tay, appearance, ký release, integration scenario và
+báo cáo PDF. Ảnh chuyển khoản chuyên biệt, Việt/Anh và iOS vẫn ngoài phạm vi này.
+Xem [COURSE_READINESS.md](COURSE_READINESS.md) cho trạng thái mới nhất.
 
 ## Kết luận
 
@@ -22,23 +24,23 @@ nhận PRD của họ có phải tiêu chí chấm điểm áp dụng cho ngư�
 
 | Hạng mục | Repository tham khảo | ReceiptWise sau cập nhật |
 | --- | --- | --- |
-| Chụp hóa đơn | Camera qua image_picker | CameraPreview trực tiếp, torch, focus, khung và crop qua camera chính thức |
+| Chụp hóa đơn | Camera qua image_picker | Có image_picker camera/gallery, giữ thêm CameraPreview với torch/focus/khung/crop |
 | OCR trên máy | ML Kit Latin | ML Kit Latin, không cloud/API key |
 | Parser merchant/amount/date | Regex, nhãn không dấu, tổng dòng kế tiếp, DMY/YMD | Đã bổ sung nhãn không dấu, tổng dòng kế tiếp, DMY/YMD và ưu tiên tổng cuối |
 | Review trước lưu | Bắt buộc | Bắt buộc, mọi trường sửa được, raw OCR xem trong bộ nhớ |
 | OCR lỗi | Nhập tay trong review | Nhập tay trong review |
-| Nhập chi tiêu tay độc lập | Có | Chưa có; khác với fallback nhập tay của hóa đơn |
+| Nhập chi tiêu tay độc lập | Có | Có, dùng form review và validation chung, ảnh nullable |
 | CRUD SQLite, lưu ảnh riêng | Có | Có; path trong DB, ảnh documents, ISO-8601 |
 | Lịch sử/detail/edit/delete | Có | Có, xác nhận xóa, xử lý ảnh thiếu và retry cleanup |
 | Home tổng quan | Có tổng và gần đây | Đã bổ sung tổng chi tiêu, 7 ngày, số giao dịch, 3 giao dịch gần nhất |
 | Biểu đồ CustomPainter | Donut, tuần hiện tại | Donut, 7 ngày gần nhất theo yêu cầu ReceiptWise |
-| Material 3 / dark / responsive | Có, lựa chọn appearance | Có, tự theo hệ thống, form cuộn và touch target |
-| State management | Riverpod 2 theo PRD môn học | Widget state + service/repository, refresh khi dữ liệu đổi; giữ kiến trúc đã chọn |
+| Material 3 / dark / responsive | Có, lựa chọn appearance | Có System/Light/Dark, form cuộn và touch target; lựa chọn theo phiên |
+| State management | Riverpod 2; phần lõi cho phép Provider hoặc Riverpod | Provider + ChangeNotifier chia sẻ snapshot SQLite và tổng hợp dữ liệu |
 | Ảnh ngân hàng/ví, duplicate warning | Phần mở rộng riêng | Không trong phạm vi lần này |
-| Gallery import / Việt-Anh / iOS host | Có mã nguồn tương ứng | Không trong phạm vi Android hóa đơn ban đầu |
-| Tests | Unit/widget + integration boundary giả | Unit/widget, SQLite thật trong host tests; chưa có test Android vật lý |
-| APK | README mô tả ký riêng và thử máy Samsung | Build được; đang debug signing, chưa kiểm thử native trên máy |
-| Video/screenshot/PDF | Có ảnh/PDF; video chưa bundled | README TODO ảnh/video; chưa có báo cáo PDF |
+| Gallery import / Việt-Anh / iOS host | Có mã nguồn tương ứng | Có gallery hóa đơn; chưa có Việt/Anh hoặc iOS host |
+| Tests | Unit/widget + integration boundary giả | 96 host tests; có integration scenario native SQLite, chưa chạy máy Android |
+| APK | README mô tả ký riêng và thử máy Samsung | APK ký chứng chỉ riêng, ID riêng; chưa kiểm thử native trên máy |
+| Video/screenshot/PDF | Có ảnh/PDF; video chưa bundled | Có ảnh UI fixture và PDF 4 trang; video và ảnh thiết bị thật TODO |
 
 Các thông tin kiểm thử thiết bị của repository tham khảo là mô tả của tác giả
 trong README, không phải kết quả kiểm chứng độc lập của lần đối chiếu này.
@@ -46,7 +48,7 @@ trong README, không phải kết quả kiểm chứng độc lập của lần 
 Nguồn: [README tham khảo](https://github.com/Vcoch27/receipt-ocr-expense-tracker/blob/c473bc5070e3855c858a3f05e695451b7d0af6a8/README.md),
 [PRD tham khảo](https://github.com/Vcoch27/receipt-ocr-expense-tracker/blob/c473bc5070e3855c858a3f05e695451b7d0af6a8/MiniProject3_Receipt_OCR_Expense_Tracker_PRD.md).
 
-## Cải tiến đã triển khai
+## Cải tiến đợt đầu (1.0.1+2, lịch sử)
 
 - Parser nhận các nhãn có/không dấu: TỔNG CỘNG, TỔNG TIỀN, THÀNH TIỀN,
   THANH TOÁN, CỘNG TIỀN, Grand total, Amount due, Total.
@@ -86,8 +88,3 @@ Nguồn: [README tham khảo](https://github.com/Vcoch27/receipt-ocr-expense-tra
 APK **1.0.1+2** build thành công. Kích thước/checksum APK mới được ghi trong README.
 Regression mới kiểm tra tổng tách dòng/ưu tiên tổng/ngày ISO và dashboard:
 7 ngày, recent limit, retry/empty, revision refresh, disposal và màn hình nhỏ.
-
-Vẫn cần máy Android để kiểm chứng camera/crop/OCR offline, persistence sau khởi
-động lại và APK mới. Cần production signing, application ID, ảnh/video thật.
-Nếu đề chấm bắt buộc Riverpod/image_picker/PDF, cần đối chiếu đề gốc và xử lý
-trong phạm vi riêng; bản cập nhật này không tuyên bố đạt toàn bộ PRD môn học kia.

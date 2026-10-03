@@ -16,7 +16,7 @@ class _SaveService extends ReceiptSaveService {
   TransactionModel? saved;
   @override
   Future<TransactionModel> save({
-    required String temporaryImagePath,
+    required String? temporaryImagePath,
     required String merchant,
     required double amount,
     required DateTime date,

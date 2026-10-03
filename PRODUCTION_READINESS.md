@@ -1,5 +1,9 @@
 # ReceiptWise production-readiness review
 
+The latest 1.1.0+3 upgrade is documented in
+[COURSE_READINESS.md](COURSE_READINESS.md). This document preserves the earlier
+production audit and verification counts as historical evidence.
+
 Reviewed on 2026-10-03 without redesigning the application architecture or adding
 dependencies. Automated checks pass; physical Android and signed release
 verification remain TODO.
