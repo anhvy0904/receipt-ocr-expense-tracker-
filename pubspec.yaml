@@ -1,7 +1,7 @@
 name: receiptwise
 description: An on-device receipt scanner and local expense tracker.
 publish_to: 'none'
-version: 1.1.0+3
+version: 1.1.1+4
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
@@ -30,3 +30,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/receiptwise_logo.png

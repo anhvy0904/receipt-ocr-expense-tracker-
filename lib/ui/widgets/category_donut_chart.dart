@@ -3,16 +3,18 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../app/theme/brand_colors.dart';
+
 import '../../models/spending_analytics.dart';
 import '../../utils/analytics_format.dart';
 
 const categoryChartColors = [
-  Color(0xff237a50),
-  Color(0xff456ac9),
-  Color(0xffb46620),
-  Color(0xff9657b2),
-  Color(0xffc24667),
-  Color(0xff65747c),
+  BrandColors.navy,
+  BrandColors.sky,
+  BrandColors.pink,
+  Color(0xFF6982BA),
+  Color(0xFFB96A80),
+  Color(0xFF8993A8),
 ];
 
 class CategoryDonutChart extends StatelessWidget {

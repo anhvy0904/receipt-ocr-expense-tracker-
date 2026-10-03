@@ -6,6 +6,7 @@ import '../../state/transaction_state.dart';
 import '../../utils/analytics_format.dart';
 import '../../utils/transaction_format.dart';
 import '../widgets/receipt_image.dart';
+import '../widgets/receiptwise_logo.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -113,9 +114,17 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Welcome to ReceiptWise',
-              style: Theme.of(context).textTheme.headlineSmall,
+            Row(
+              children: [
+                const ReceiptWiseLogo(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Welcome to ReceiptWise',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             const Text(

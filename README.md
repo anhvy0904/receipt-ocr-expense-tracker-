@@ -1,5 +1,10 @@
 # 1. Project Title: ReceiptWise
 
+<img src="assets/branding/receiptwise_logo.png" alt="ReceiptWise smiling receipt logo" width="160">
+
+Brand palette: `#425B9A` · `#76C0EC` · `#FFF6DC` · `#FF95A5`.
+See [branding assets and generation notes](docs/BRANDING.md).
+
 ## 2. Project Description
 
 ReceiptWise is an Android Flutter application that turns physical receipts into
@@ -15,10 +20,10 @@ chart library is used.
 
 A release-mode APK was built locally on **2026-10-03**:
 
-- Version: **1.1.0+3**
+- Version: **1.1.1+4**
 - File: `build/app/outputs/flutter-apk/app-release.apk`
-- Size: **88,386,859 bytes** (84.3 MiB)
-- SHA-256: `A99A393013B274E462C49D410B39F4FF02691F778A77DFDB676361BE743BF52D`
+- Size: **89,109,319 bytes** (85.0 MiB)
+- SHA-256: `88D09DCD5F9F2A2B80C5080E248C85BDE3803AA0AA4A53F6842AF48B435E906A`
 
 The artifact is generated locally and ignored by version control. It uses the
 dedicated ReceiptWise release certificate, verified using APK Signature Scheme v2.
@@ -348,7 +353,7 @@ flutter build apk --release
 
 Default output: `build/app/outputs/flutter-apk/app-release.apk`.
 Optional per-ABI APKs: `flutter build apk --release --split-per-abi`.
-The release APK was built successfully on 2026-10-03 (88,386,859 bytes).
+The release APK was built successfully on 2026-10-03 (89,109,319 bytes).
 Its dedicated RSA certificate was verified with Android apksigner. Physical-device
 release testing and public distribution remain TODO.
 
