@@ -82,7 +82,7 @@ the Android application uses sqflite.
 in an `IndexedStack`. Scanner opens a full-screen Navigator route from the
 navigation bar or Home; it is not instantiated in an offstage tab. Returning
 from Scanner preserves the preceding tab unless a transaction was saved, in which
-case Home displays its permanent receipt image and success feedback.
+case Home displays success feedback and reloads its SQLite spending summary.
 
 ReviewReceiptScreen follows crop and OCR. History pushes TransactionDetailScreen,
 which pushes TransactionEditScreen. ReceiptPreviewScreen remains
@@ -269,6 +269,20 @@ phone or item numbers. OCR and chart drawing keep their existing layer boundarie
 The review passed formatting, dependency resolution, analysis and all 78 tests.
 See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for changed files and device
 and release checks that remain unverified.
+
+## Receipt-flow comparison update (2026-10-03)
+
+The user selected receipt-flow improvements while retaining the current
+architecture. HomeSummaryService queries TransactionRepository once and reuses
+AnalyticsService aggregation for all-time/latest-seven-day totals. HomeSummary
+contains BigInt cent totals, transaction count and three recent records. Home
+reloads on activation/revision or pull-to-refresh and protects async state updates.
+
+ReceiptParser folds Vietnamese labels, ranks final total labels ahead of item
+totals, accepts adjacent standalone amounts and year-first dates, and prefers
+date-labelled lines. Subtotal/change/tendered cash are excluded from fallback.
+The database schema, OCR, camera and painters remain unchanged; no package added.
+See [COMPARISON_REVIEW.md](COMPARISON_REVIEW.md) for scope and remaining gaps.
 
 ## Future layer boundaries
 

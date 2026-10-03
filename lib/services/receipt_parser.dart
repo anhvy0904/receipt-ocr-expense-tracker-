@@ -7,6 +7,23 @@ class ParsedReceipt {
 }
 
 class ReceiptParser {
+  static String _fold(String value) {
+    var result = value.toLowerCase();
+    const accents = {
+      'a': 'àáạảãâầấậẩẫăằắặẳẵ',
+      'e': 'èéẹẻẽêềếệểễ',
+      'i': 'ìíịỉĩ',
+      'o': 'òóọỏõôồốộổỗơờớợởỡ',
+      'u': 'ùúụủũưừứựửữ',
+      'y': 'ỳýỵỷỹ',
+      'd': 'đ',
+    };
+    for (final entry in accents.entries) {
+      result = result.replaceAll(RegExp('[${entry.value}]'), entry.key);
+    }
+    return result.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
   ParsedReceipt parse(String text) {
     final lines = text
         .split(RegExp(r'[\r\n]+'))
@@ -17,14 +34,16 @@ class ReceiptParser {
     double? amount;
     DateTime? date;
     final totals = RegExp(
-      r'tổng\s*(cộng|tiền|thanh toán)|thành\s*tiền|grand\s*total|\btotal\b',
+      r'\b(?:tong (?:cong|tien|thanh toan)|thanh tien|thanh toan|cong tien|amount due|grand total|total)\b',
       caseSensitive: false,
     );
     final excluded = RegExp(
-      r'hóa\s*đơn|hoá\s*đơn|receipt|invoice|địa\s*chỉ|điện\s*thoại|\btel\b|\bđt\b|\bphone\b|\bmst\b|mã\s*số\s*thuế|ngày|date|thu ngân|cashier',
+      r'\b(?:hoa don|receipt|invoice|dia chi|address|dien thoai|tel|dt|phone|mst|ma so thue|ngay|date|thu ngan|cashier)\b',
       caseSensitive: false,
     );
-    final dates = RegExp(r'\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b');
+    final dates = RegExp(
+      r'\b(?:\d{4}[/.-]\d{1,2}[/.-]\d{1,2}|\d{1,2}[/.-]\d{1,2}[/.-]\d{4})\b',
+    );
     final money = RegExp(
       r'-?\d+(?:[., ]\d{3})+(?:[.,]\d{1,2})?|-?\d+(?:[.,]\d{1,2})?',
     );
@@ -33,21 +52,62 @@ class ReceiptParser {
       caseSensitive: false,
     );
     double? currencyFallback;
-    for (final line in lines) {
+    int bestTotalScore = -1;
+    int bestDateScore = -1;
+    final nonTotals = RegExp(
+      r'\b(?:subtotal|sub total|tam tinh|tien khach|khach dua|tien thua|change|cash|vat|tax|giam gia|discount)\b',
+    );
+    for (var index = 0; index < lines.length; index++) {
+      final line = lines[index];
+      final folded = _fold(line);
       for (final match in dates.allMatches(line)) {
-        date ??= parseDate(match.group(0)!);
+        final candidate = parseDate(match.group(0)!);
+        final score = RegExp(r'\b(?:ngay|date)\b').hasMatch(folded) ? 1 : 0;
+        if (candidate != null && score > bestDateScore) {
+          date = candidate;
+          bestDateScore = score;
+        }
       }
-      final totalLabel = totals.firstMatch(line);
+      final totalLabel = nonTotals.hasMatch(folded)
+          ? null
+          : totals.firstMatch(folded);
       if (totalLabel != null) {
-        final candidates = money.allMatches(line.substring(totalLabel.end));
+        // Match and slice the same normalized text so spacing cannot shift offsets.
+        var amountText = folded.substring(totalLabel.end).trim();
+        bool adjacent = false;
+        if (!money.hasMatch(amountText) && index + 1 < lines.length) {
+          final next = lines[index + 1];
+          // Only consider a standalone number; labelled phone/date/item lines are skipped.
+          if (RegExp(
+                r'^\s*[:=]?\s*-?\d[\d., ]*\s*(?:vnd|vnđ|đ|₫)?\s*$',
+                caseSensitive: false,
+              ).hasMatch(next) &&
+              !dates.hasMatch(next)) {
+            amountText = next;
+            adjacent = true;
+          }
+        }
+        final priority =
+            RegExp(
+              r'\b(?:tong cong|tong tien|tong thanh toan|grand total|amount due)\b',
+            ).hasMatch(folded)
+            ? 4
+            : folded.contains('thanh tien')
+            ? 1
+            : 2;
+        final score = priority * 2 + (adjacent ? 0 : 1);
+        final candidates = money.allMatches(amountText);
         for (final match in candidates) {
           final value = parseAmount(match.group(0)!);
-          if (value != null && value > 0) {
+          if (value != null && value > 0 && score >= bestTotalScore) {
             amount = value;
+            bestTotalScore = score;
             break;
           }
         }
-      } else if (currency.hasMatch(line) && !dates.hasMatch(line)) {
+      } else if (!nonTotals.hasMatch(folded) &&
+          currency.hasMatch(line) &&
+          !dates.hasMatch(line)) {
         for (final match in currency.allMatches(line)) {
           final value = parseAmount(match.group(1)!);
           if (value != null &&
@@ -58,7 +118,8 @@ class ReceiptParser {
         }
       }
       if (merchant == null &&
-          merchantCandidate(line, totals, excluded, dates, currency)) {
+          merchantCandidate(line, totals, excluded, dates, currency) &&
+          !nonTotals.hasMatch(folded)) {
         merchant = line;
       }
     }
@@ -76,8 +137,8 @@ class ReceiptParser {
     RegExp dates,
     RegExp currency,
   ) {
-    return !totals.hasMatch(line) &&
-        !excluded.hasMatch(line) &&
+    return !totals.hasMatch(_fold(line)) &&
+        !excluded.hasMatch(_fold(line)) &&
         !dates.hasMatch(line) &&
         !currency.hasMatch(line) &&
         RegExp(r'[A-Za-zÀ-ỹ]').hasMatch(line) &&
@@ -105,15 +166,19 @@ class ReceiptParser {
     return amount != null && amount.isFinite ? amount : null;
   }
 
-  /// Strict day/month/year validation; DateTime normalization is rejected.
+  /// Strict day-first or year-first validation; DateTime normalization is rejected.
   static DateTime? parseDate(String input) {
+    final value = input.trim();
     final match = RegExp(
       r'^(\d{1,2})([/.-])(\d{1,2})\2(\d{4})$',
-    ).firstMatch(input.trim());
-    if (match == null) return null;
-    final day = int.parse(match[1]!);
-    final month = int.parse(match[3]!);
-    final year = int.parse(match[4]!);
+    ).firstMatch(value);
+    final iso = RegExp(
+      r'^(\d{4})([/.-])(\d{1,2})\2(\d{1,2})$',
+    ).firstMatch(value);
+    if (match == null && iso == null) return null;
+    final day = int.parse(match != null ? match[1]! : iso![4]!);
+    final month = int.parse(match != null ? match[3]! : iso![3]!);
+    final year = int.parse(match != null ? match[4]! : iso![1]!);
     if (year < 1 || month < 1 || month > 12 || day < 1) return null;
     final date = DateTime(year, month, day);
     return date.year == year && date.month == month && date.day == day

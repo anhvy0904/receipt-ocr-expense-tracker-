@@ -60,6 +60,9 @@ class _AppShellState extends State<AppShell> {
           children: [
             HomeScreen(
               onScanReceipt: () => _selectDestination(1),
+              onViewTransactions: () => _selectDestination(2),
+              active: _selectedIndex == 0,
+              revision: _transactionRevision,
               selectedReceiptPath: _savedReceipt?.receiptImagePath,
             ),
             const SizedBox.shrink(),

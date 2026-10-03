@@ -15,10 +15,10 @@ chart library is used.
 
 A release-mode APK was built locally on **2026-10-03**:
 
-- Version: **1.0.0+1**
+- Version: **1.0.1+2**
 - File: `build/app/outputs/flutter-apk/app-release.apk`
-- Size: **88,051,572 bytes** (84.0 MiB)
-- SHA-256: `DD20D7FF4328F5B372F8AF7359D46AF9628671461D4A204CD16A12C3B810F60C`
+- Size: **88,067,960 bytes** (84.0 MiB)
+- SHA-256: `CC4127717C43B310A8AED665F9AA2F3909338A30FE2074127225182A7BD93AF9`
 
 The artifact is generated locally and ignored by version control. It uses the
 debug signing configuration and has not been installed or published. Configure
@@ -43,6 +43,8 @@ through review, Save, History, Edit/Delete and Analytics, then add the real URL.
 
 ## 6. Features
 
+- SQLite-backed Home summary: all-time spending, latest-seven-day spending,
+  transaction count and three most recent transactions; refresh after changes.
 - Full-screen back-camera preview, off/torch flash, supported tap-to-focus,
   receipt framing, permission/error handling and lifecycle-aware camera release.
 - Orientation-aware framing crop at native resolution, processed in an isolate.
@@ -122,6 +124,8 @@ History / Analytics → TransactionRepository → AppDatabase → local SQLite
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) and the
 [production-readiness review](PRODUCTION_READINESS.md) for implementation details.
+The [comparison review](COMPARISON_REVIEW.md) documents how ReceiptWise differs
+from the referenced course project and which receipt-flow gaps were improved.
 
 ## 10. Project Structure
 
@@ -132,7 +136,7 @@ lib/
   models/                 Transactions, OCR output, receipt geometry, analytics
   database/               AppDatabase and SQLite schema
   repository/             TransactionRepository
-  services/               Camera, OCR, parser, crop, storage, save/delete, aggregation
+  services/               Camera, OCR, parser, crop, storage, save/delete, home summary, aggregation
   ui/screens/             Home, Scanner, Review, History, Detail, Edit, Analytics
   ui/widgets/             Camera/frame/controls, images, empty states, chart painters
   utils/                  Local-date, VND and analytics display formatting
@@ -145,6 +149,7 @@ android/                  Android host and Gradle configuration
 README.md
 ARCHITECTURE.md
 PRODUCTION_READINESS.md
+COMPARISON_REVIEW.md
 pubspec.yaml
 pubspec.lock
 ```
@@ -172,13 +177,18 @@ ReceiptParser uses local regular expressions and header heuristics:
 
 - Merchant: the first plausible text header, excluding totals, dates, currency
   amounts, common invoice/contact labels and numerical lines.
-- Amount: prefer `TỔNG CỘNG`, `TỔNG TIỀN`, `THÀNH TIỀN` or English total labels.
+- Amount: prioritize final totals such as `TỔNG CỘNG`, `TỔNG TIỀN`, `Grand total`
+  and `Amount due` over item-level `THÀNH TIỀN`. Recognize `THANH TOÁN` and
+  `CỘNG TIỀN` too, with Vietnamese accent folding and whitespace normalization.
+  A standalone amount on the next line can follow a total label. Subtotal,
+  tendered cash and change do not replace the expense total.
   Without a labeled total, use the largest explicitly currency-tagged candidate.
   Unrelated phone/item numbers are excluded from that fallback.
 - Supported examples: `150,000 VND`, `150.000 VND`, `150.000đ`, `150 000 đ`,
   `TỔNG CỘNG: 150.000`, `THÀNH TIỀN: 150,000`.
-- Date: match day/month/year with `/`, `-` or `.` and reject normalized invalid
-  dates such as `31/02/2026`. Example: `01/10/2026`.
+- Date: match day/month/year or year/month/day with `/`, `-` or `.` and reject
+  normalized invalid dates or mixed separators. Prefer date-labelled lines.
+  Examples: `01/10/2026`, `2026-10-01`; review displays `DD/MM/YYYY`.
 
 Missing values remain empty. Heuristics can misread unusual receipt layouts, so all
 prefills remain editable. Save validates a nonblank merchant, positive finite amount,
@@ -278,7 +288,7 @@ flutter test --coverage
 ```
 
 Verification on **2026-10-03** with the supplied SDK: formatting and dependency
-resolution succeeded, analyzer reported **no issues**, and **78 tests passed**.
+resolution succeeded, analyzer reported **no issues**, and **86 tests passed**.
 Flutter invocations used `--no-version-check` to avoid checking for SDK updates.
 Tests cover real SQLite persistence, async disposal, save rollback, parser formats,
 missing images, edit/delete, chart pixels/animation and keyboard/enlarged-text layouts.
@@ -301,7 +311,7 @@ flutter build apk --release
 
 Default output: `build/app/outputs/flutter-apk/app-release.apk`.
 Optional per-ABI APKs: `flutter build apk --release --split-per-abi`.
-The release APK was built successfully on 2026-10-03 (88,051,572 bytes). It uses
+The release APK was built successfully on 2026-10-03 (88,067,960 bytes). It uses
 the debug signing configuration and has not been installed or published. Production
 signing and physical-device release testing remain TODO.
 
