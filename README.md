@@ -31,7 +31,8 @@ manual expense entry. See [course requirements and remaining checks](COURSE_READ
 
 ## 3. APK Download
 
-**TODO: public APK download URL not available.**
+- **Direct Download Link**: [Download ReceiptWise v1.1.1 APK (85 MB)](https://github.com/anhvy0904/receipt-ocr-expense-tracker-/releases/download/v1.1.1/app-release.apk)
+- **GitHub Release Page**: [ReceiptWise v1.1.1 Release Notes](https://github.com/anhvy0904/receipt-ocr-expense-tracker-/releases/tag/v1.1.1)
 
 A release-mode APK was built locally on **2026-10-03**:
 
