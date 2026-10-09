@@ -166,14 +166,14 @@
 
         <div class="feature-card">
           <div class="feature-icon-wrapper">🧠</div>
-          <h3 class="feature-card-title">Heuristics Biên lai Tiếng Việt</h3>
-          <p class="feature-card-desc">Thuật toán bóc tách regex tối ưu riêng cho hóa đơn Việt Nam: phân tách dấu thanh, nhận diện tên cửa hàng, ưu tiên dòng 'Tổng cộng / Tổng tiền thanh toán' và ngày tháng chuẩn xác.</p>
+          <h3 class="feature-card-title">Bóc Tách Biên Lai &amp; Chuyển Khoản</h3>
+          <p class="feature-card-desc">Thuật toán tối ưu kép: vừa nhận diện chuẩn hóa đơn giấy Việt Nam (ưu tiên tổng cộng, tiền tách dòng, DMY/YMD), vừa tự động bóc tách ảnh chụp chuyển khoản ngân hàng (Vietcombank, MB, Techcombank...) và ví điện tử (MoMo, ZaloPay...).</p>
         </div>
 
         <div class="feature-card">
           <div class="feature-icon-wrapper">🛡️</div>
-          <h3 class="feature-card-title">Review &amp; Chống lưu trùng</h3>
-          <p class="feature-card-desc">Mọi kết quả OCR đều qua màn hình Review cho phép người dùng kiểm tra và chỉnh sửa. Hệ thống áp dụng validation nghiêm ngặt và cơ chế khóa nút bấm ngăn ngừa ghi đúp giao dịch.</p>
+          <h3 class="feature-card-title">Review &amp; Cảnh báo Trạng thái</h3>
+          <p class="feature-card-desc">Mọi kết quả OCR đều qua màn hình Review cho phép kiểm tra và chỉnh sửa. Hiển thị huy hiệu nguồn (Biên lai / Ngân hàng / Ví điện tử), cảnh báo nếu giao dịch đang chờ xử lý hoặc thất bại, và chống ghi đúp.</p>
         </div>
 
         <div class="feature-card">
@@ -205,7 +205,7 @@
           <!-- Left: Receipt Scanner -->
           <div class="sim-scanner-box">
             <h3 class="sim-box-title">
-              <span>📷 Khung Quét Biên Lai</span>
+              <span>📷 Khung Quét Biên Lai &amp; Giao Dịch</span>
             </h3>
 
             <div id="sim-receipt-viewport" class="sim-receipt-viewport" title="Bấm vào để tải lên ảnh biên lai của bạn">
@@ -216,11 +216,12 @@
             <input type="file" id="receipt-upload-input" accept="image/*" style="display: none;">
 
             <div class="sim-sample-picker">
-              <span class="sample-label">Hoặc chọn nhanh biên lai mẫu Việt Nam:</span>
+              <span class="sample-label">Hoặc chọn nhanh mẫu kiểm thử (Biên lai / Ngân hàng / Ví điện tử):</span>
               <div class="sample-buttons-row">
-                <button class="sample-chip active" data-sample="sample-1">☕ Highlands Coffee</button>
-                <button class="sample-chip" data-sample="sample-2">🛒 Co.opmart</button>
-                <button class="sample-chip" data-sample="sample-3">📚 Fahasa</button>
+                <button class="sample-chip active" data-sample="sample-1">🧾 Highlands Coffee</button>
+                <button class="sample-chip" data-sample="sample-2">🏦 Vietcombank (Bank)</button>
+                <button class="sample-chip" data-sample="sample-3">📱 Ví MoMo (E-Wallet)</button>
+                <button class="sample-chip" data-sample="sample-4">🛒 Co.opmart Thảo Điền</button>
               </div>
             </div>
           </div>
@@ -232,6 +233,14 @@
             </h3>
 
             <div class="sim-form-panel">
+              <!-- Source Badge -->
+              <div id="sim-source-badge" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(118,192,236,0.15); border:1px solid rgba(118,192,236,0.3); border-radius:10px; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span id="sim-source-icon" style="font-size:1.2rem;">🧾</span>
+                  <span id="sim-source-title" style="font-weight:700; color:var(--text-primary);">Biên lai giấy</span>
+                </div>
+                <span id="sim-status-chip" style="font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.2); color:#10B981;">Thành công</span>
+              </div>
               <div class="form-row">
                 <div class="form-group">
                   <label for="review-merchant">Cửa hàng (Merchant)</label>

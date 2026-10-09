@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/expense_source.dart';
 import '../../models/receipt_review_draft.dart';
 import '../../models/transaction_model.dart';
 import '../../services/receipt_parser.dart';
@@ -29,37 +30,46 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
   late final TextEditingController _amount;
   late final TextEditingController _date;
   late final ReceiptSaveService _saveService;
+  late final ParsedReceipt _parsed;
   String? _category;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    final parsed = ReceiptParser().parse(
+    _parsed = ReceiptParser().parse(
       widget.draft.ocrResult?.fullText ?? '',
     );
     _merchant = TextEditingController(
       text: widget.draft.merchant.isNotEmpty
           ? widget.draft.merchant
-          : parsed.merchant ?? '',
+          : _parsed.merchant ?? '',
     );
     _amount = TextEditingController(
       text: widget.draft.amount.isNotEmpty
           ? widget.draft.amount
-          : parsed.amount == null
+          : _parsed.amount == null
           ? ''
-          : amountInputText(parsed.amount!),
+          : amountInputText(_parsed.amount!),
     );
     _date = TextEditingController(
       text: widget.draft.date.isNotEmpty
           ? widget.draft.date
-          : parsed.date == null
+          : _parsed.date == null
           ? ''
-          : ReceiptParser.formatDate(parsed.date!),
+          : ReceiptParser.formatDate(_parsed.date!),
     );
-    _category = ReceiptReviewDraft.categories.contains(widget.draft.category)
+    final suggested = _parsed.suggestedCategory;
+    _category = widget.draft.category.isEmpty
+        ? null
+        : (ReceiptReviewDraft.categories.contains(widget.draft.category) &&
+                widget.draft.category != 'Other')
         ? widget.draft.category
-        : null;
+        : (suggested != null && ReceiptReviewDraft.categories.contains(suggested))
+        ? suggested
+        : (ReceiptReviewDraft.categories.contains(widget.draft.category)
+            ? widget.draft.category
+            : null);
     _saveService = widget.saveService ?? ReceiptSaveService();
   }
 
@@ -138,6 +148,108 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
                         ? 'No text was found. Enter the receipt details manually.'
                         : 'Check the extracted details and edit anything that needs correcting.',
                   ),
+                  if (_parsed.source != ExpenseSource.receipt || _parsed.provider != null) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(_parsed.source.icon, style: const TextStyle(fontSize: 22)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _parsed.provider != null
+                                      ? '${_parsed.source.labelVi}: ${_parsed.provider}'
+                                      : _parsed.source.labelVi,
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (_parsed.transactionReference != null)
+                                  Text(
+                                    'Mã GD: ${_parsed.transactionReference}',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (_parsed.status != PaymentStatus.unknown)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _parsed.status == PaymentStatus.successful
+                                    ? Colors.green.withValues(alpha: 0.15)
+                                    : Colors.orange.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _parsed.status.labelVi,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _parsed.status == PaymentStatus.successful
+                                      ? Colors.green.shade800
+                                      : Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (_parsed.status == PaymentStatus.failed || _parsed.status == PaymentStatus.pending) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _parsed.status == PaymentStatus.failed
+                            ? Colors.red.shade50
+                            : Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _parsed.status == PaymentStatus.failed
+                              ? Colors.red.shade300
+                              : Colors.amber.shade400,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _parsed.status == PaymentStatus.failed
+                                ? Icons.warning_amber_rounded
+                                : Icons.info_outline,
+                            color: _parsed.status == PaymentStatus.failed
+                                ? Colors.red.shade700
+                                : Colors.amber.shade900,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _parsed.status == PaymentStatus.failed
+                                  ? 'Cảnh báo: Ảnh chụp có dấu hiệu giao dịch không thành công hoặc bị hủy. Vui lòng kiểm tra lại.'
+                                  : 'Lưu ý: Giao dịch đang chờ xử lý (pending). Vui lòng kiểm tra lại.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: _parsed.status == PaymentStatus.failed
+                                    ? Colors.red.shade900
+                                    : Colors.amber.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   TextFormField(
                     textInputAction: TextInputAction.next,
@@ -146,7 +258,12 @@ class _ReviewReceiptScreenState extends State<ReviewReceiptScreen> {
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'Merchant is required.'
                         : null,
-                    decoration: const InputDecoration(labelText: 'Merchant'),
+                    decoration: InputDecoration(
+                      labelText: 'Merchant',
+                      helperText: _parsed.source != ExpenseSource.receipt
+                          ? 'Người nhận / Đơn vị thụ hưởng'
+                          : null,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

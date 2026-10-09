@@ -98,7 +98,154 @@ const ReceiptParserEngine = {
     return 'Other';
   },
 
+  isPaymentScreenshot(rawText) {
+    const folded = this.fold(rawText);
+    const keywords = /\b(chuyen tien|chuyen khoan|giao dich|thanh toan|thanh cong|nguoi thu huong|tai khoan thu huong|ma giao dich|ma tra soat|so tien chuyen|vi dien tu|so du|bien lai dien tu)\b/i;
+    const banks = /\b(vietcombank|techcombank|mb bank|mbbank|vietinbank|bidv|agribank|acb|vpbank|tpbank|cake|timo|momo|zalopay|viettel money|vnpay|shopeepay)\b/i;
+    return banks.test(folded) || (folded.match(keywords) || []).length >= 2;
+  },
+
+  parsePayment(rawText) {
+    const lines = rawText.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+    const foldedAll = this.fold(rawText);
+
+    let provider = null;
+    let source = 'bankTransfer';
+    const bankMatches = ['Vietcombank', 'Techcombank', 'MB Bank', 'VietinBank', 'BIDV', 'Agribank', 'ACB', 'VPBank', 'TPBank', 'Cake', 'Timo'];
+    const walletMatches = ['MoMo', 'ZaloPay', 'Viettel Money', 'VNPay', 'ShopeePay'];
+
+    for (const w of walletMatches) {
+      if (foldedAll.includes(this.fold(w))) {
+        provider = w;
+        source = 'eWallet';
+        break;
+      }
+    }
+    if (!provider) {
+      for (const b of bankMatches) {
+        if (foldedAll.includes(this.fold(b))) {
+          provider = b;
+          source = 'bankTransfer';
+          break;
+        }
+      }
+    }
+
+    let status = 'successful';
+    let statusVi = 'Thành công';
+    if (/\b(that bai|khong thanh cong|bi huy|loi giao dich|failed|cancelled)\b/i.test(foldedAll)) {
+      status = 'failed';
+      statusVi = 'Thất bại';
+    } else if (/\b(dang xu ly|cho xu ly|dang cho|pending|processing)\b/i.test(foldedAll)) {
+      status = 'pending';
+      statusVi = 'Đang chờ xử lý';
+    }
+
+    let amount = null;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const folded = this.fold(line);
+      if (/\b(so tien chuyen|so tien giao dich|so tien|amount|gia tri|so tien thanh toan)\b/i.test(folded)) {
+        const amt = this.parseAmount(line);
+        if (amt && amt > 0) {
+          amount = amt;
+          break;
+        }
+        if (i + 1 < lines.length) {
+          const nextAmt = this.parseAmount(lines[i + 1]);
+          if (nextAmt && nextAmt > 0) {
+            amount = nextAmt;
+            break;
+          }
+        }
+      }
+    }
+    if (!amount) {
+      for (const line of lines) {
+        if (/(vnd|vnđ|đ|₫)$/i.test(line.trim())) {
+          const amt = this.parseAmount(line);
+          if (amt && amt > 0) {
+            amount = amt;
+            break;
+          }
+        }
+      }
+    }
+
+    let recipient = null;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const folded = this.fold(line);
+      if (/\b(nguoi nhan|nguoi thu huong|tai khoan thu huong|ten nguoi nhan|thanh toan cho|dich vu|den|to|recipient)\b/i.test(folded)) {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx !== -1 && colonIdx + 1 < line.length) {
+          const cand = line.substring(colonIdx + 1).trim();
+          if (cand.length > 0) {
+            recipient = cand;
+            break;
+          }
+        }
+        if (i + 1 < lines.length && !recipient) {
+          recipient = lines[i + 1].trim();
+          break;
+        }
+      }
+    }
+    if (!recipient) {
+      for (const line of lines) {
+        if (/^[A-ZÀ-Ỹ\s]{5,35}$/.test(line) && !/\b(VIETCOMBANK|TECHCOMBANK|MBBANK|BIDV|THANH CONG|GIAO DICH)\b/i.test(line)) {
+          recipient = line.trim();
+          break;
+        }
+      }
+    }
+
+    let date = null;
+    const datesRegex = /\b(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{4}|\d{4}[/.-]\d{1,2}[/.-]\d{1,2})\b/;
+    for (const line of lines) {
+      const m = line.match(datesRegex);
+      if (m) {
+        const d = this.parseDate(m[0]);
+        if (d) {
+          date = d;
+          break;
+        }
+      }
+    }
+
+    let reference = null;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const folded = this.fold(line);
+      if (/\b(ma giao dich|ma tra soat|ma tham chieu|so giao dich|ma gd|magd|ref|transaction id)\b/i.test(folded)) {
+        const parts = line.split(/[:\-\s]+/);
+        if (parts.length > 1) {
+          reference = parts[parts.length - 1];
+        }
+        break;
+      }
+    }
+
+    const category = this.detectCategory(rawText, recipient);
+
+    return {
+      merchant: recipient || (provider ? `Chuyển khoản ${provider}` : 'Giao dịch chuyển khoản'),
+      amount: amount || 0,
+      date: date || new Date(),
+      category: category,
+      source: source,
+      provider: provider,
+      status: status,
+      statusVi: statusVi,
+      reference: reference
+    };
+  },
+
   parse(rawText) {
+    if (this.isPaymentScreenshot(rawText)) {
+      return this.parsePayment(rawText);
+    }
+
     const lines = rawText.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
     let merchant = null;
     let amount = null;
@@ -185,7 +332,12 @@ const ReceiptParserEngine = {
       merchant: merchant || 'Cửa hàng không tên',
       amount: finalAmount || 0,
       date: date || new Date(),
-      category: category
+      category: category,
+      source: 'receipt',
+      provider: null,
+      status: 'successful',
+      statusVi: 'Thành công',
+      reference: null
     };
   },
 
@@ -205,7 +357,7 @@ const SAMPLE_RECEIPTS = [
   {
     id: 'sample-1',
     name: 'Highlands Coffee',
-    type: 'Đồ uống / Cafe',
+    type: '🧾 Biên lai giấy',
     rawText: `HIGHLANDS COFFEE
 Landmark 81, Binh Thanh, TP.HCM
 Hoa don ban hang: HD-88492
@@ -221,8 +373,33 @@ Cam on quy khach & Hen gap lai!`
   },
   {
     id: 'sample-2',
+    name: 'Vietcombank',
+    type: '🏦 Chuyển khoản',
+    rawText: `Vietcombank
+CHUYỂN TIỀN THÀNH CÔNG
+Số tiền: 500.000 VND
+Người thụ hưởng: NGUYỄN VĂN A
+Ngân hàng thụ hưởng: MB Bank
+Ngày thực hiện: 18/05/2026 14:32:00
+Mã giao dịch: VCB88492019
+Nội dung: Tiền cơm trưa và đồ uống`
+  },
+  {
+    id: 'sample-3',
+    name: 'Ví MoMo',
+    type: '📱 Ví điện tử',
+    rawText: `MoMo
+Giao dịch thành công
+Số tiền: 120.000 đ
+Thanh toán cho: Highlands Coffee
+Thời gian: 15/05/2026 09:15
+Mã giao dịch: MM987654321
+Dịch vụ: Cà phê và điểm tâm sáng`
+  },
+  {
+    id: 'sample-4',
     name: 'Co.opmart Thảo Điền',
-    type: 'Siêu thị / Nhu yếu phẩm',
+    type: '🛒 Siêu thị',
     rawText: `SIEU THI CO.OPMART THAO DIEN
 Xa Lo Ha Noi, TP. Thu Duc
 Ngay mua hang: 14/05/2026 18:20
@@ -234,30 +411,92 @@ Ngay mua hang: 14/05/2026 18:20
 Tong cong thanh toan:   245.000 VND
 Hinh thuc: Tien mat
 Ma hoa don: CM-20260514-99`
-  },
-  {
-    id: 'sample-3',
-    name: 'Nhà Sách FAHASA',
-    type: 'Sách / Học tập',
-    rawText: `NHA SACH FAHASA NGUYEN HUE
-40 Nguyen Hue, Quan 1, TP.HCM
-Ngay: 12/05/2026 14:15
-1. Giao trinh AI Co Ban  120.000
-2. So tay ghi chep B5    40.000
-3. But bi Pilot 0.5 (2x) 20.000
--------------------------------
-TONG CONG:              180.000 VND
-Thanh toan qua the Visa: 180.000 VND
-Xin cam on quy khach!`
   }
 ];
 
-// Helper to draw realistic receipt canvas image
+// Helper to draw realistic receipt / banking canvas image
 function generateReceiptCanvas(receiptText, targetImgElement) {
   const canvas = document.createElement('canvas');
   canvas.width = 440;
   canvas.height = 600;
   const ctx = canvas.getContext('2d');
+
+  const isBank = /vietcombank|mbbank|techcombank|chuyen tien/i.test(receiptText);
+  const isWallet = /momo|zalopay/i.test(receiptText);
+
+  if (isBank || isWallet) {
+    const brandColor = isWallet ? '#A50064' : '#0B4127';
+    const brandAccent = isWallet ? '#D82D8B' : '#16A34A';
+    const brandName = isWallet ? 'VÍ ĐIỆN TỬ MOMO' : 'VIETCOMBANK DIGITAL';
+
+    // Background
+    ctx.fillStyle = '#F1F5F9';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Header gradient
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, 170);
+    grad.addColorStop(0, brandColor);
+    grad.addColorStop(1, isWallet ? '#C2185B' : '#15803D');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, 170);
+
+    // App header title
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(brandName, canvas.width / 2, 45);
+
+    // Checkmark circle
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, 110, 34, 0, Math.PI * 2);
+    ctx.fillStyle = brandAccent;
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✓', canvas.width / 2, 110);
+
+    // Title
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#0F172A';
+    ctx.font = 'bold 19px sans-serif';
+    ctx.fillText('GIAO DỊCH THÀNH CÔNG', canvas.width / 2, 218);
+
+    // Card details surface
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#E2E8F0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(24, 240, canvas.width - 48, 330, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    // Text Lines inside card
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#334155';
+    ctx.textAlign = 'left';
+
+    const lines = receiptText.split('\n');
+    let y = 280;
+    for (const line of lines) {
+      if (line.toLowerCase().includes('vietcombank') || line.toLowerCase().includes('momo')) continue;
+      if (line.toLowerCase().includes('thanh cong')) continue;
+
+      if (line.toLowerCase().includes('so tien')) {
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillStyle = brandAccent;
+      } else {
+        ctx.font = '13px sans-serif';
+        ctx.fillStyle = '#334155';
+      }
+      ctx.fillText(line.trim(), 44, y);
+      y += 30;
+      if (y > canvas.height - 50) break;
+    }
+
+    targetImgElement.src = canvas.toDataURL('image/png');
+    return;
+  }
 
   // Paper texture
   ctx.fillStyle = '#FAFAF7';
@@ -744,6 +983,32 @@ document.addEventListener('DOMContentLoaded', () => {
         reviewDate.value = `${y}-${m}-${day}`;
       }
       if (reviewCategory) reviewCategory.value = parsed.category;
+
+      const sourceIcon = document.getElementById('sim-source-icon');
+      const sourceTitle = document.getElementById('sim-source-title');
+      const statusChip = document.getElementById('sim-status-chip');
+
+      if (sourceIcon && sourceTitle && statusChip) {
+        if (parsed.source === 'bankTransfer') {
+          sourceIcon.textContent = '🏦';
+          sourceTitle.textContent = parsed.provider ? `Chuyển khoản: ${parsed.provider}` : 'Chuyển khoản Ngân hàng';
+          statusChip.textContent = parsed.statusVi || 'Thành công';
+          statusChip.style.background = parsed.status === 'failed' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+          statusChip.style.color = parsed.status === 'failed' ? '#EF4444' : '#10B981';
+        } else if (parsed.source === 'eWallet') {
+          sourceIcon.textContent = '📱';
+          sourceTitle.textContent = parsed.provider ? `Ví điện tử: ${parsed.provider}` : 'Ví điện tử';
+          statusChip.textContent = parsed.statusVi || 'Thành công';
+          statusChip.style.background = 'rgba(16, 185, 129, 0.2)';
+          statusChip.style.color = '#10B981';
+        } else {
+          sourceIcon.textContent = '🧾';
+          sourceTitle.textContent = 'Biên lai giấy';
+          statusChip.textContent = 'Thành công';
+          statusChip.style.background = 'rgba(16, 185, 129, 0.2)';
+          statusChip.style.color = '#10B981';
+        }
+      }
 
       showToast(`⚡ Nhận diện thành công trong ${duration}ms!`);
     }, 700);

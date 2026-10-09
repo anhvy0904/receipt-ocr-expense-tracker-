@@ -1,12 +1,34 @@
+import '../models/expense_source.dart';
+import 'payment_screenshot_parser.dart';
+
 /// Best-effort local heuristics. Missing values stay null for manual review.
 class ParsedReceipt {
-  const ParsedReceipt({this.merchant, this.amount, this.date});
+  const ParsedReceipt({
+    this.merchant,
+    this.amount,
+    this.date,
+    this.source = ExpenseSource.receipt,
+    this.status = PaymentStatus.unknown,
+    this.provider,
+    this.transactionReference,
+    this.note,
+    this.suggestedCategory,
+  });
+
   final String? merchant;
   final double? amount;
   final DateTime? date;
+  final ExpenseSource source;
+  final PaymentStatus status;
+  final String? provider;
+  final String? transactionReference;
+  final String? note;
+  final String? suggestedCategory;
 }
 
 class ReceiptParser {
+  static String fold(String value) => _fold(value);
+
   static String _fold(String value) {
     var result = value.toLowerCase();
     const accents = {
@@ -25,6 +47,26 @@ class ReceiptParser {
   }
 
   ParsedReceipt parse(String text) {
+    // 1. Detect if image is a bank or e-wallet payment confirmation
+    const paymentParser = PaymentScreenshotParser();
+    if (paymentParser.isPaymentScreenshot(text)) {
+      final payment = paymentParser.parse(text);
+      if (payment.amount != null || payment.recipient != null || payment.provider != null) {
+        return ParsedReceipt(
+          merchant: payment.recipient,
+          amount: payment.amount,
+          date: payment.date,
+          source: payment.source,
+          status: payment.status,
+          provider: payment.provider,
+          transactionReference: payment.transactionReference,
+          note: payment.note,
+          suggestedCategory: payment.suggestedCategory,
+        );
+      }
+    }
+
+    // 2. Physical receipt heuristics
     final lines = text
         .split(RegExp(r'[\r\n]+'))
         .map((line) => line.trim())
@@ -127,6 +169,9 @@ class ReceiptParser {
       merchant: merchant,
       amount: amount ?? currencyFallback,
       date: date,
+      source: ExpenseSource.receipt,
+      status: PaymentStatus.successful,
+      suggestedCategory: _suggestReceiptCategory(merchant, text),
     );
   }
 
@@ -143,6 +188,31 @@ class ReceiptParser {
         !currency.hasMatch(line) &&
         RegExp(r'[A-Za-zÀ-ỹ]').hasMatch(line) &&
         !RegExp(r'^\d|https?://|www\.', caseSensitive: false).hasMatch(line);
+  }
+
+  static String? _suggestReceiptCategory(String? merchant, String rawText) {
+    final combined = _fold('${merchant ?? ''} $rawText');
+    if (RegExp(r'\b(an|com|cafe|coffee|tra|highlands|phuc long|food|bun|pho|quan|nha hang|banh)\b')
+        .hasMatch(combined)) {
+      return 'Food';
+    }
+    if (RegExp(r'\b(hoc|sach|khoa hoc|course|tuition|fahasa|book|giao trinh|van phong pham)\b')
+        .hasMatch(combined)) {
+      return 'Study';
+    }
+    if (RegExp(r'\b(grab|be|gojek|xang|petrolimex|taxi|ve xe|bus|flight|travel)\b')
+        .hasMatch(combined)) {
+      return 'Travel';
+    }
+    if (RegExp(r'\b(the gioi di dong|fpt|phong vu|laptop|gear|dien thoai|chuot|ban phim)\b')
+        .hasMatch(combined)) {
+      return 'Gear';
+    }
+    if (RegExp(r'\b(cgv|cinema|lotte|rap|movie|karaoke|game|ticket)\b')
+        .hasMatch(combined)) {
+      return 'Entertainment';
+    }
+    return null;
   }
 
   /// Accept grouping separators used by Vietnamese receipts and a decimal tail.
